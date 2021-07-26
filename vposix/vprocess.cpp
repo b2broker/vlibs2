@@ -67,7 +67,9 @@ void vprocess::_pimpl::init_as_parent()
     out.read_has_closed += [&]{ owner->cout_closed(); };
     err.read_has_closed += [&]{ owner->cerr_closed(); };
 
+    vdeb << "__deb" << "out";
     out.poll_read();
+    vdeb << "__deb" << "err";
     err.poll_read();
 }
 //---------------------------------------------------------------------------------------

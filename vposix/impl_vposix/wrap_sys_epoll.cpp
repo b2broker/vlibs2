@@ -112,44 +112,64 @@ static uint32_t direction( epoll::Direction d )
 void wrap_sys_epoll::add( int efd, int fd, epoll::Direction d, epoll_receiver *receiver )
 {
     assert( receiver );
+
+    vdeb << "__deb wrap_sys_epoll::add" << receiver << fd;
+
     econtrol( efd, fd, EPOLL_CTL_ADD, direction(d), receiver );
 }
 //=======================================================================================
 void wrap_sys_epoll::mod( int efd, int fd, epoll::Direction d, epoll_receiver *receiver )
 {
     assert( receiver );
+    vdeb << "__deb wrap_sys_epoll::mod" << receiver << fd;
+
     econtrol( efd, fd, EPOLL_CTL_MOD, direction(d), receiver );
 }
 //=======================================================================================
 void wrap_sys_epoll::del( int efd, int fd )
 {
+
+    vdeb << "__deb wrap_sys_epoll::del" << fd;
+
     econtrol( efd, fd, EPOLL_CTL_DEL, 0, nullptr );
 }
 //=======================================================================================
 //  Надо для отладки, пока что не уверен в поллинге.
-//static std::string deb_flags( epoll_receiver::events f )
-//{
-//    vcat res;
-//    if ( f.take_read() )        res("|IN");
-//    if ( f.take_write() )       res("|OUT");
-//    if ( f.take_error() )       res("|ERR");
-//    if ( f.take_hang_up() )     res("|HANG");
-//    if ( f.take_read_hang_up()) res("|READ_HANG");
-//    return res;
-//}
+static std::string deb_flags( epoll_receiver::events f )
+{
+    vcat res;
+    if ( f.take_read() )        res("|IN");
+    if ( f.take_write() )       res("|OUT");
+    if ( f.take_error() )       res("|ERR");
+    if ( f.take_hang_up() )     res("|HANG");
+    if ( f.take_read_hang_up()) res("|READ_HANG");
+
+    f.check_empty();
+    return res;
+}
 //---------------------------------------------------------------------------------------
 void wrap_sys_epoll::wait_once( int efd )
 {
     enum { waits_count = 16 };
 
     struct epoll_event events[waits_count];
-    int count = linux_call::check( ::epoll_wait, efd, events, waits_count, -1 );
+
+    //vdeb << "__deb epoll_wait before";
+    int count = linux_call::check( ::epoll_wait, efd, events, waits_count, 2000 );
+
+    bool nd_log = count > 1;
+
+    if (nd_log) vdeb << "__deb epoll_wait" << count;
 
     for ( int i = 0; i < count; ++i )
     {
         epoll_receiver *receiver = static_cast<epoll_receiver*>( events[i].data.ptr );
-        //uint32_t evs = events[i].events;
-        //vdeb.hex() << "epolled" << receiver << evs << deb_flags(evs);
+
+        if (nd_log) {
+            uint32_t evs = events[i].events;
+            vdeb << "epolled" << receiver << evs << deb_flags(evs);
+        }
+
         receiver->on_events( {events[i].events} );
     }
 }

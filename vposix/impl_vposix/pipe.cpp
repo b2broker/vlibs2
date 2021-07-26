@@ -1,6 +1,7 @@
 #include "pipe.h"
 
 #include "impl_vposix/wrap_unistd.h"
+#include "vlog.h"
 
 using namespace impl_vposix;
 
@@ -69,6 +70,7 @@ void pipe::write( const std::string& data )
 //=======================================================================================
 void pipe::poll_read()
 {
+    vdeb << "__deb" << "!";
     _read.poll_add_read( this );
 }
 //=======================================================================================
