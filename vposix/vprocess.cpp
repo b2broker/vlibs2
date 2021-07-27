@@ -101,11 +101,11 @@ void vprocess::_pimpl::wait()
     int status;
     linux_call::check( ::wait4, pid, &status, 0, &age );
 
-    auto o = out.do_read();
-    if ( !o.empty() ) owner->cout( o );
+    //auto o = out.do_read();
+    //if ( !o.empty() ) owner->cout( o );
 
-    auto e = err.do_read();
-    if ( !e.empty() ) owner->cerr( e );
+    //auto e = err.do_read();
+    //if ( !e.empty() ) owner->cerr( e );
 }
 //=======================================================================================
 

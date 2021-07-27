@@ -6,6 +6,9 @@
 #include "vlog.h"
 #include "vcat.h"
 
+#include <map>
+#include <list>
+
 using namespace impl_vposix;
 
 //=======================================================================================
@@ -109,6 +112,61 @@ static uint32_t direction( epoll::Direction d )
     throw verror( "Direction not delected" );
 }
 //=======================================================================================
+
+
+class PollControl {
+    PollControl() = default;
+
+    std::list<void*> _polled;
+    std::map<int, void*> _polled_map;
+
+public:
+    // без синглтона это не работает
+    // просто статические контейнеры крашатся в __libc_start_main -> .. -> poll_context()
+    static PollControl& inst() {
+        static PollControl instance;
+        return instance;
+    }
+
+    bool is_polled(void* rcv) {
+        return std::find(_polled.begin(), _polled.end(), rcv) != _polled.end();
+    }
+
+    void add(int fd, void* rcv) {
+        auto it = _polled_map.find(fd);
+        if (it != _polled_map.end()) {
+            vwarning["poll"] << "Poll addition. Descriptor" << fd << "is polled already";
+            _polled.remove(it->second);
+        }
+        _polled_map.insert_or_assign(fd, rcv);
+        _polled.push_back(rcv);
+    }
+
+    void mod(int fd, void* rcv) {
+        auto it = _polled_map.find(fd);
+        if (it == _polled_map.end()) {
+            vwarning["poll"] << "Poll modifying. Descriptor" << fd << "is not polled yet";
+        }
+        else {
+            _polled.remove(it->second);
+        }
+        _polled_map.insert_or_assign(fd, rcv);
+        _polled.push_back(rcv);
+    }
+
+    void del(int fd) {
+        auto it = _polled_map.find(fd);
+        if (it == _polled_map.end()) {
+            vwarning["poll"] << "Poll deleting. Descriptor" << fd << "is not polled";
+            return;
+        }
+        _polled_map.erase(fd);
+        _polled.remove(it->second);
+    }
+};
+
+
+
 void wrap_sys_epoll::add( int efd, int fd, epoll::Direction d, epoll_receiver *receiver )
 {
     assert( receiver );
@@ -116,6 +174,8 @@ void wrap_sys_epoll::add( int efd, int fd, epoll::Direction d, epoll_receiver *r
     vdeb << "__deb wrap_sys_epoll::add" << receiver << fd;
 
     econtrol( efd, fd, EPOLL_CTL_ADD, direction(d), receiver );
+
+    PollControl::inst().add(fd, receiver);
 }
 //=======================================================================================
 void wrap_sys_epoll::mod( int efd, int fd, epoll::Direction d, epoll_receiver *receiver )
@@ -124,6 +184,8 @@ void wrap_sys_epoll::mod( int efd, int fd, epoll::Direction d, epoll_receiver *r
     vdeb << "__deb wrap_sys_epoll::mod" << receiver << fd;
 
     econtrol( efd, fd, EPOLL_CTL_MOD, direction(d), receiver );
+
+    PollControl::inst().mod(fd, receiver);
 }
 //=======================================================================================
 void wrap_sys_epoll::del( int efd, int fd )
@@ -132,7 +194,11 @@ void wrap_sys_epoll::del( int efd, int fd )
     vdeb << "__deb wrap_sys_epoll::del" << fd;
 
     econtrol( efd, fd, EPOLL_CTL_DEL, 0, nullptr );
+
+    PollControl::inst().del(fd);
 }
+
+
 //=======================================================================================
 //  Надо для отладки, пока что не уверен в поллинге.
 static std::string deb_flags( epoll_receiver::events f )
@@ -164,6 +230,11 @@ void wrap_sys_epoll::wait_once( int efd )
     for ( int i = 0; i < count; ++i )
     {
         epoll_receiver *receiver = static_cast<epoll_receiver*>( events[i].data.ptr );
+
+        if (!PollControl::inst().is_polled(receiver)) {
+            vdeb["poll"] << "event is not polled" << receiver << deb_flags(events[i].events);
+            continue;
+        }
 
         if (nd_log) {
             uint32_t evs = events[i].events;

@@ -3,6 +3,7 @@
 //#include <system_error> там std::errc, может и понадобится, хоть нормальные имена.
 #include <cerrno>
 #include <cstring>
+#include <iostream>
 
 #include "vcat.h"
 #include "vcompiler_traits.h"
@@ -70,6 +71,7 @@ bool ErrNo::has() const
 //=======================================================================================
 bool ErrNo::need_repeat_last_call() const
 {
+    std::cout << "! " << _err << std::endl;
     return _err == EINTR; // std::errc::interrupted;
 }
 //=======================================================================================
