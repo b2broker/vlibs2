@@ -6,6 +6,7 @@
 
 #include "vcat.h"
 #include "vcompiler_traits.h"
+#include <iostream>
 
 using namespace impl_vposix;
 
@@ -70,6 +71,7 @@ bool ErrNo::has() const
 //=======================================================================================
 bool ErrNo::need_repeat_last_call() const
 {
+    std::cout << "need_repeat_last_call " << _err << std::endl;
     return _err == EINTR; // std::errc::interrupted;
 }
 //=======================================================================================

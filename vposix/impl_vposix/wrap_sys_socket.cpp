@@ -207,12 +207,25 @@ bool wrap_sys_socket::send_no_err( int fd, const std::string& data )
         auto sended = _send_no_err(fd, ptr, size);
         size_t usended = size_t( sended );
 
-        if ( sended < 0 )      return false;
+        if ( sended < 0 )
+        {
+
+            vdeb << "@@@Sent " << sended << "errno" << errno;
+
+            //TODO add to poll
+            if (errno == EAGAIN || errno == EWOULDBLOCK )
+            {
+                continue;
+            }
+            return false;
+        }
         if ( usended == size ) return true;
 
         assert( usended < size );
         ptr  += usended;
         size -= usended;
+
+        vdeb << "Sent " << sended <<  "size " << size;
     }
 }
 //=======================================================================================

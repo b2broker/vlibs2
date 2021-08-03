@@ -43,6 +43,8 @@ public:
     vsocket_address address() const;
     vsocket_address peer_address() const;
 
+    bool dbg_log = false;
+
 private:
     class _pimpl; std::unique_ptr<_pimpl> _p;
 };
